@@ -29,30 +29,22 @@ var readContents = function (dirname) {
         }
         else {
             files
-                .filter(function (file) {
-                    return !fs.lstatSync('./' + absPath + '' + dirname + '/' + file).isDirectory();
-                })
-                .forEach(function (file, index) {
-                    fs.readFile('./' + absPath + '' + dirname + '/' + file, function (err, data) {
-                        if (err) throw err; // Something went wrong!
-                        else {
-                            parameters = {Bucket: '<>', Key: dirname + '/' + file, Body: data};
-                            s3.putObject(parameters, function (err, data) {
-                                if (err) console.log(err);
-                                else console.log('Successfully uploaded data to ' + dirname + '/' + file);
-                            });
-                        }
-                    });
+                .forEach(function (file) {
+                    if (!fs.lstatSync('./' + absPath + '' + dirname + '/' + file).isDirectory()) {
+                        fs.readFile('./' + absPath + '' + dirname + '/' + file, function (err, data) {
+                            if (err) throw err; // Something went wrong!
+                            else {
+                                parameters = {Bucket: '<>', Key: dirname + '/' + file, ACL: 'public-read', Body: data};
+                                s3.putObject(parameters, function (err, data) {
+                                    if (err) console.log(err);
+                                    else console.log('Successfully uploaded data to ' + dirname + '/' + file);
+                                });
+                            }
+                        });
+                    } else {
+                        readContents(dirname + '/' + file);
+                    }
                 });
-
-            files
-                .filter(function (subdir) {
-                    return fs.lstatSync('./' + absPath + '' + dirname + '/' + subdir).isDirectory();
-                })
-                .forEach(function (subdir, index) {
-                    readContents(dirname + '/' + subdir);
-                });
-
         }
     });
 };
