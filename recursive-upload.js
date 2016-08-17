@@ -35,6 +35,9 @@ var readContents = function (dirname) {
                             if (err) throw err; // Something went wrong!
                             else {
                                 parameters = {Bucket: '<>', Key: dirname + '/' + file, ACL: 'public-read', Body: data};
+                                if (file.search(/.css$/i) > -1) {
+                                    parameters.ContentType = 'text/css';
+                                }
                                 s3.putObject(parameters, function (err, data) {
                                     if (err) console.log(err);
                                     else console.log('Successfully uploaded data to ' + dirname + '/' + file);
