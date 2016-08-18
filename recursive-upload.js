@@ -97,7 +97,6 @@ var syncFunction = function () {
                 delArray.push({Key: val});
             }
         });
-
         if (delArray.length > 0) {
             var params = {
                 Bucket: bucketname,
@@ -118,14 +117,12 @@ sts.assumeRole(params, function (err, data) {
         console.log(err, err.stack);
     } else {
         credentials = data.Credentials;
-
         s3 = new AWS.S3({
             accessKeyId: credentials.AccessKeyId,
             secretAccessKey: credentials.SecretAccessKey,
             sessionToken: credentials.SessionToken,
             region: '<>'
         });
-
         reqDirs.forEach(function (dir) {
             readContents(dir);
         });
