@@ -6,6 +6,9 @@ var process = require("process");
 var s3 = {};
 var filesList = [];
 var delArray = [];
+var bucketObjectsList = [];
+var lastSetRetrieved = false;
+var calledSync = false;
 var absPath = '< ROOT >/';
 var reqDirs = ['< DIRECTORY 1 >', '< DIRECTORY 2 >', '< DIRECTORY 3 >'];
 var bucketname = '< NAME OF BUCKET >';
@@ -55,6 +58,61 @@ var readContents = function (dirname) {
     });
 };
 
+var retrieveContents = function (keyMarker) {
+    params = {Bucket: bucketname};
+    if (keyMarker !== null) {
+        params.Marker = keyMarker;
+        console.log('showing null!');
+    }
+    s3.listObjects(params, function (err, data) {
+        if (err) {
+            console.log(err, err.stack);
+            lastSetRetrieved = true;
+        } // an error occurred
+        else {
+            if (!data.IsTruncated) {
+                data.Contents.forEach(function (val) {
+                    if (bucketObjectsList.indexOf(val.Key) === -1) {
+                        bucketObjectsList.push(val.Key);
+                    }
+                    lastSetRetrieved = true;
+                });
+            } else {
+                console.log("Retrieving over the max limit for single attempt retrieval of objects.");
+                data.Contents.forEach(function (val) {
+                    if (bucketObjectsList.indexOf(val.Key) === -1) {
+                        bucketObjectsList.push(val.Key);
+                    }
+                });
+                retrieveContents(data.Contents[data.Contents.length - 1].Key);
+            }
+        }
+    });
+};
+
+var syncFunction = function () {
+    if (bucketObjectsList.length > filesList.length) {
+        bucketObjectsList.forEach(function (val) {
+            if (filesList.indexOf(val) === -1) {
+                delArray.push({Key: val});
+            }
+        });
+
+        if (delArray.length > 0) {
+            var params = {
+                Bucket: bucketname,
+                Delete: {
+                    Objects: delArray
+                }
+            };
+            s3.deleteObjects(params, function (err, data) {
+                if (err) console.log(err, err.stack); // an error occurred
+                else console.log(data);           // successful response
+            });
+        }
+    }
+};
+
 sts.assumeRole(params, function (err, data) {
     if (err) {
         console.log(err, err.stack);
@@ -68,39 +126,17 @@ sts.assumeRole(params, function (err, data) {
             region: '<>'
         });
 
-        reqDirs.forEach(function (val) {
-            readContents(val);
+        reqDirs.forEach(function (dir) {
+            readContents(dir);
         });
-        
-               params = {Bucket: bucketname};
-        s3.listObjects(params, function (err, data) {
-            if (err) console.log(err, err.stack); // an error occurred
-            else {
-                if (!data.IsTruncated) {
-                    if (data.Contents.length > filesList.length) {
-                        data.Contents.forEach(function (val, key) {
-                            if (filesList.indexOf(val.Key) === -1) {
-                                delArray.push({Key: val.Key});
-                            }
-                        });
-
-                        if (delArray.length > 0) {
-                            var params = {
-                                Bucket: bucketname,
-                                Delete: {
-                                    Objects: delArray
-                                }
-                            };
-                            s3.deleteObjects(params, function (err, data) {
-                                if (err) console.log(err, err.stack); // an error occurred
-                                else console.log(data);           // successful response
-                            });
-                        }
-                    }
-                }         else {
-                    console.log("over a thousand, code needs to be re-written.");
-                }
+        retrieveContents(null);
+        var intervalVar = setInterval(function () {
+            if (lastSetRetrieved && !calledSync) {
+                syncFunction();
+                calledSync = true;
+            } else if (calledSync) {
+                clearInterval(intervalVar);
             }
-        });
+        }, 3000);
     }
 });
