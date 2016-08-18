@@ -4,8 +4,11 @@ var path = require('path');
 var process = require("process");
 
 var s3 = {};
-var absPath = '<root>/';
-var reqDirs = ['<dir1>', '<dir2>', '<dir2>'];
+var filesList = [];
+var delArray = [];
+var absPath = '< ROOT >/';
+var reqDirs = ['< DIRECTORY 1 >', '< DIRECTORY 2 >', '< DIRECTORY 3 >'];
+var bucketname = '< NAME OF BUCKET >';
 
 var sts = new AWS.STS({
     accessKeyId: '<>',
@@ -34,7 +37,7 @@ var readContents = function (dirname) {
                         fs.readFile('./' + absPath + '' + dirname + '/' + file, function (err, data) {
                             if (err) throw err; // Something went wrong!
                             else {
-                                parameters = {Bucket: '<>', Key: dirname + '/' + file, ACL: 'public-read', Body: data};
+                                parameters = {Bucket: bucketname, Key: dirname + '/' + file, ACL: 'public-read', Body: data};
                                 if (file.search(/.css$/i) > -1) {
                                     parameters.ContentType = 'text/css';
                                 }
@@ -67,6 +70,37 @@ sts.assumeRole(params, function (err, data) {
 
         reqDirs.forEach(function (val) {
             readContents(val);
+        });
+        
+               params = {Bucket: bucketname};
+        s3.listObjects(params, function (err, data) {
+            if (err) console.log(err, err.stack); // an error occurred
+            else {
+                if (!data.IsTruncated) {
+                    if (data.Contents.length > filesList.length) {
+                        data.Contents.forEach(function (val, key) {
+                            if (filesList.indexOf(val.Key) === -1) {
+                                delArray.push({Key: val.Key});
+                            }
+                        });
+
+                        if (delArray.length > 0) {
+                            var params = {
+                                Bucket: bucketname,
+                                Delete: {
+                                    Objects: delArray
+                                }
+                            };
+                            s3.deleteObjects(params, function (err, data) {
+                                if (err) console.log(err, err.stack); // an error occurred
+                                else console.log(data);           // successful response
+                            });
+                        }
+                    }
+                }         else {
+                    console.log("over a thousand, code needs to be re-written.");
+                }
+            }
         });
     }
 });
