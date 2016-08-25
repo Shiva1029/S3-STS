@@ -43,6 +43,8 @@ var readContents = function (dirname) {
                                 parameters = {Bucket: bucketname, Key: dirname + '/' + file, ACL: 'public-read', Body: data};
                                 if (file.search(/.css$/i) > -1) {
                                     parameters.ContentType = 'text/css';
+                                }  else if (file.search(/.js$/i) > -1) {
+                                    parameters.ContentType = 'application/javascript';
                                 }
                                 s3.putObject(parameters, function (err, data) {
                                     if (err) console.log(err);
